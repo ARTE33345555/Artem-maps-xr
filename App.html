@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Babylon.js + WebXR Глобус для Oculus Quest 3</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+</head>
+<body style="margin:0; overflow:hidden;">
+    <canvas id="renderCanvas"></canvas>
+
+<script>
+(async function() {
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color3(0, 0, 0);
+
+    // Камера, можно крутить мышкой/касаниями
+    const camera = new BABYLON.ArcRotateCamera("Camera", Math.PI/2, Math.PI/3, 5, BABYLON.Vector3.Zero(), scene);
+    camera.attachControl(canvas, true);
+
+    // Свет
+    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0,1,0), scene);
+
+    // Земной шар
+    const earth = BABYLON.MeshBuilder.CreateSphere("earth", {diameter: 2, segments: 64}, scene);
+    const earthMat = new BABYLON.StandardMaterial("earthMat", scene);
+    earthMat.diffuseTexture = new BABYLON.Texture("https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Equirectangular_projection_SW.jpg/1920px-Equirectangular_projection_SW.jpg", scene);
+    earthMat.specularColor = BABYLON.Color3.Black();
+    earth.material = earthMat;
+
+    // Вращение земли
+    scene.registerBeforeRender(() => {
+        earth.rotation.y += 0.0015;
+    });
+
+    // Инициализация WebXR
+    let xrHelper;
+    try {
+        xrHelper = await BABYLON.WebXRDefaultExperience.CreateAsync(scene, {
+            optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking", "layers"]
+        });
+        console.log("WebXR инициализирован успешно.");
+    } catch (e) {
+        console.error("Ошибка инициализации WebXR:", e);
+    }
+
+    // GUI: кнопка для входа/выхода из VR
+    const gui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+    const button = BABYLON.GUI.Button.CreateSimpleButton("xrBtn", "Войти в VR");
+    button.width = "180px";
+    button.height = "50px";
+    button.color = "white";
+    button.background = "green";
+    button.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    button.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    button.top = "-20px";
+    button.left = "-20px";
+
+    gui.addControl(button);
+
+    button.onPointerUpObservable.add(async () => {
+        if (!xrHelper) {
+            console.warn("WebXR не инициализирован.");
+            return;
+        }
+        if (xrHelper.baseExperience.state === BABYLON.WebXRState.NOT_IN_XR) {
+            try {
+                await xrHelper.baseExperience.enterXRAsync("immersive-vr", "local-floor");
+                button.textBlock.text = "Выйти из VR";
+                console.log("Вошли в VR");
+            } catch (err) {
+                console.error("Ошибка входа в VR:", err);
+            }
+        } else {
+            await xrHelper.baseExperience.exitXRAsync();
+            button.textBlock.text = "Войти в VR";
+            console.log("Вышли из VR");
+        }
+    });
+
+    engine.runRenderLoop(() => {
+        scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+        engine.resize();
+    });
+})();
+</script>
+</body>
+</html>
+
+
