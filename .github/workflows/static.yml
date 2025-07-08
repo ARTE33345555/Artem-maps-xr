@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>VR Earth for ARTE33345555</title>
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  <script src="https://cdn.babylonjs.com/babylon.webxr.min.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; }
+    canvas { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body>
+<canvas id="renderCanvas"></canvas>
+<script>
+const canvas = document.getElementById("renderCanvas");
+const engine = new BABYLON.Engine(canvas, true);
+
+async function createScene() {
+  const scene = new BABYLON.Scene(engine);
+  const camera = new BABYLON.ArcRotateCamera("Camera", 0, Math.PI / 2.2, 15, BABYLON.Vector3.Zero(), scene);
+  camera.attachControl(canvas, true);
+
+  new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0), scene);
+
+  const earth = BABYLON.MeshBuilder.CreateSphere("earth", { diameter: 10 }, scene);
+  const earthMat = new BABYLON.StandardMaterial("mat", scene);
+  earthMat.diffuseTexture = new BABYLON.Texture("https://upload.wikimedia.org/wikipedia/commons/6/6f/Earthmap1000x500compac.jpg");
+  earth.material = earthMat;
+
+  const xrHelper = await scene.createDefaultXRExperienceAsync();
+
+  const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+  const button = BABYLON.GUI.Button.CreateSimpleButton("btn", "Войти в VR");
+  button.width = "180px";
+  button.height = "50px";
+  button.color = "white";
+  button.background = "#00aa88";
+  button.cornerRadius = 10;
+  button.fontSize = 20;
+  button.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+  button.top = "-100px";
+  ui.addControl(button);
+
+  button.onPointerUpObservable.add(() => {
+    xrHelper.baseExperience.enterXRAsync("immersive-vr", "local-floor").catch((err) => {
+      alert("Ошибка запуска VR: " + err.message);
+    });
+  });
+
+  return scene;
+}
+
+createScene().then(scene => {
+  engine.runRenderLoop(() => scene.render());
+});
+
+window.addEventListener("resize", () => engine.resize());
+</script>
+</body>
+</html>
+
+
+
